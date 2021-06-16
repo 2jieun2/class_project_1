@@ -14,13 +14,9 @@ def prediction(dataloader, model, device, save_pred_path=False):
         for idx, data in enumerate(dataloader):
             real_x = Variable(data['x']).to(device)
             real_y = Variable(data['y']).to(device)
-            # if cuda:
-            #     real_x = real_x.to(device)
-            #     real_y = real_y.to(device)
 
-            fake_y = model(real_x)
-            if len(fake_y) != 1:  # model output: enc_list, out
-                fake_y = fake_y[-1]
+            fake_y = model(real_x) # Model output: enc_list, out
+            fake_y = fake_y[-1]
 
             real_y = real_y.cpu().detach().numpy()
             fake_y = fake_y.cpu().detach().numpy()
@@ -49,10 +45,8 @@ def prediction_self(dataloader, model, device, save_pred_path=False):
     for idx, data in enumerate(dataloader):
         real_y = Variable(data['y']).to(device)
 
-        self_y = model(real_y)
-
-        if len(self_y) != 1: # model output: enc_list, out
-            self_y = self_y[-1]
+        self_y = model(real_y) # Model output: enc_list, out
+        self_y = self_y[-1]
 
         real_y = real_y.cpu().detach().numpy()
         self_y = self_y.cpu().detach().numpy()

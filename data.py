@@ -38,11 +38,11 @@ class MRI_7t(Dataset):
         path_data = self.path_dataset[index]
         patient_id = path_data.split('/')[-1]
 
-        path_3t = f'{path_data}/3t_02_norm.nii'
-        path_7t = f'{path_data}/7t_02_norm.nii'
+        # path_3t = f'{path_data}/3t_02_norm.nii'
+        # path_7t = f'{path_data}/7t_02_norm.nii'
 
-        # path_3t = f'{path_data}/3t_02_norm_crop.nii'
-        # path_7t = f'{path_data}/7t_02_norm_crop.nii'
+        path_3t = f'{path_data}/3t_02_norm_crop.nii'
+        path_7t = f'{path_data}/7t_02_norm_crop.nii'
 
         x = nib.load(path_3t).get_data()
         y = nib.load(path_7t).get_data()
