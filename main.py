@@ -38,20 +38,17 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--mode', type=str, default='train')
 
-parser.add_argument('--path_dataset', type=str, default='/home/ubuntu/jelee/dataset/7T_data_01')
-# parser.add_argument('--path_dataset', type=str, default='/DataCommon3/jelee/7T_data_01')
+parser.add_argument('--path_dataset', type=str, default='/dataset/7T_data_01')
 
 parser.add_argument('--batch_size', type=int, default=1)
 parser.add_argument('--epochs', type=int, default=200)
 parser.add_argument('--val_num', type=int, default=3)
-# parser.add_argument('--re_size', type=int, nargs='+', default=[48, 64, 68])
 
 parser.add_argument('--nf', type=int, default=16)
 parser.add_argument('--lr_g', type=float, default=0.0002)
 parser.add_argument('--lr_t', type=float, default=0.0002)
 parser.add_argument('--lr_d', type=float, default=0.0002)
-parser.add_argument('--lambda_1', type=int, default=100) # Weight of voxel-wise loss between fake image and real image
-# parser.add_argument('--lambda_2', type=int, default=100)
+parser.add_argument('--lambda_1', type=int, default=100) # Weight of voxel-wise loss.
 parser.add_argument('--checkpoint_sample', type=int, default=10)
 
 args = parser.parse_args()
@@ -80,11 +77,11 @@ def logger_setting(save_path):
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1 and classname.find('Block') == -1:
+    if classname.find('Conv3D') != -1:
         nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
-        nn.init.normal_(m.weight.data, 1.0, 0.02)
-        nn.init.constant_(m.bias.data, 0.0)
+    # elif classname.find('BatchNorm3d') != -1:
+    #     nn.init.normal_(m.weight.data, 1.0, 0.02)
+    #     nn.init.constant_(m.bias.data, 0.0)
 
 
 def train():
@@ -116,16 +113,9 @@ def train():
 
     loss_L1 = nn.L1Loss()
     loss_MSE = nn.MSELoss()
-    loss_BCE = nn.BCELoss()
-    sigmoid = nn.Sigmoid()
 
 
     ##### Model
-    # generator = GeneratorUNet().to(device)
-    # discriminator = Discriminator().to(device)
-    # if cuda:
-    #     generator = generator.to(device)
-    #     discriminator = discriminator.to(device)
     generator = nn.DataParallel(GeneratorUNet()).to(device)
     teacher = nn.DataParallel(TeacherUNet()).to(device)
     discriminator = nn.DataParallel(Discriminator()).to(device)
@@ -156,29 +146,16 @@ def train():
     logger.debug('Adv Loss: MSE')
     logger.debug('Voxel-wise Loss: L1')
     logger.debug('Lambda of Voxel-wise Loss: %d' % args.lambda_1)
-    # logger.debug('Lambda of Guide Loss: %d' % args.lambda_2)
     logger.debug('============================================')
 
     ##### Dataset Load
-    # data_path = sorted(glob(f'{args.path_dataset}/*/'))
-    # dataset = MRIDataset(args.path_dataset)
-    # # train_dataset, val_dataset = random_split(dataset, [14, 1])
-    # train_dataset = []
-    # val_dataset = []
-    # for idx, data in enumerate(dataset):
-    #     if idx == 0:
-    #         val_dataset.append(data)
-    #     else:
-    #         train_dataset.append(data)
-
     all_idx = list(range(1, 16))
     val_idx = np.random.choice(all_idx, args.val_num, replace=False)
-    # val_idx = [1]
 
     train_data_path = []
     val_data_path = []
     for folder_name in sorted(os.listdir(args.path_dataset)):
-        _, patient_id = folder_name.split('_')  # folder_name example: S_01
+        _, patient_id = folder_name.split('_')  # Example of the folder_name: S_01
         if int(patient_id) in val_idx:
             val_data_path.append(f'{args.path_dataset}/{folder_name}')
         else:
@@ -208,13 +185,8 @@ def train():
 
             real_x = Variable(batch['x']).to(device)
             real_y = Variable(batch['y']).to(device)
-            # if cuda:
-            #     real_x = real_x.to(device)
-            #     real_y = real_y.to(device)
 
-            # ------------------------------
-            # Train teacher
-            # ------------------------------
+            ### Teacher
             guide_u1, guide_u2, guide_u3, guide_u4, guide_y = teacher(real_y)
             loss_T = loss_L1(real_y, guide_y)
 
@@ -227,26 +199,18 @@ def train():
             loss_T.backward()
             optimizer_T.step()
 
-            del guide_u1, guide_u2, guide_u3, guide_u4, guide_y
-
-            # ------------------------------
-            # Train discriminator
-            # ------------------------------
-
-            # fake_y = generator(real_x)
+            ### Discriminator
             fake_u1, fake_u2, fake_u3, fake_u4, fake_y = generator(real_x)
 
             # Real loss
             pred_real = discriminator(real_y)
             valid = Variable(Tensor(np.ones(pred_real.size())), requires_grad=False)
             loss_D_real = loss_MSE(pred_real, valid)
-            # loss_D_real = loss_L1(pred_real, valid)
 
             # Fake loss
             pred_fake = discriminator(fake_y)
             fake = Variable(Tensor(np.zeros(pred_fake.size())), requires_grad=False)
             loss_D_fake = loss_MSE(pred_fake, fake)
-            # loss_D_fake = loss_L1(pred_fake, fake)
 
             # Total loss
             loss_D = 0.5 * (loss_D_real + loss_D_fake)
@@ -256,45 +220,20 @@ def train():
                 f'Real Loss: {round(loss_D_real.item(), 4)} | Fake Loss: {round(loss_D_fake.item(), 4)} | Total: {round(loss_D.item(), 4)}'
             )
 
-            # # acc 생각해보기. ! fid score ! ncc score (normalized cross correlation) !
-            # d_real_acc = torch.ge(pred_real.squeeze(), 0.5).float()
-            # d_fake_acc = torch.le(pred_fake.squeeze(), 0.5).float()
-            # d_total_acc = torch.mean(torch.cat((d_real_acc, d_fake_acc), 0))
-            #
-            # if d_total_acc <= args.d_threshold:
-            #     optimizer_D.zero_grad()
-            #     loss_D.backward()
-            #     optimizer_D.step()
-
             optimizer_D.zero_grad()
             loss_D.backward()
             optimizer_D.step()
 
-            del fake_u1, fake_u2, fake_u3, fake_u4, fake_y
-            del pred_real, pred_fake
-
-            # ------------------------------
-            # Train generator
-            # ------------------------------
-
-            # loss 업데이트 확인하기 ! D vs G. D가 freezing -> G update / D update <- G freeze 확인
-
-            # optimizer_D.zero_grad()
-            # optimizer_G.zero_grad()
-
-            # fake_y = generator(real_x)
+            ### Generator
             fake_u1, fake_u2, fake_u3, fake_u4, fake_y = generator(real_x)
             guide_u1, guide_u2, guide_u3, guide_u4, guide_y = teacher(real_y)
 
-            # Knowledge Distillation loss
-            # loss_G_guide = loss_MSE(fake_u1, guide_u1) + loss_MSE(fake_u2, guide_u2) + loss_MSE(fake_u3, guide_u3) + loss_MSE(fake_u4, guide_u4) + loss_MSE(fake_y, guide_y)
+            # Guide loss
             loss_G_guide = loss_MSE(fake_u1, guide_u1) + loss_MSE(fake_u2, guide_u2) + loss_MSE(fake_u3, guide_u3) + loss_MSE(fake_u4, guide_u4)
-            # loss_G_guide = loss_L1(fake_u1, guide_u1) + loss_L1(fake_u2, guide_u2) + loss_L1(fake_u3, guide_u3) + loss_L1(fake_u4, guide_u4) + loss_L1(fake_y, guide_y)
 
-            # GAN loss
+            # Adversarial loss
             pred_fake = discriminator(fake_y)
             loss_G_fake = loss_MSE(pred_fake, valid)
-            # loss_G_fake = loss_L1(pred_fake, valid)
             loss_G_voxel = args.lambda_1 * loss_L1(fake_y, real_y)
 
             # Total loss
@@ -344,8 +283,6 @@ def train():
         writer.add_scalar('val_psnr', val_psnr, epoch)
         writer.add_scalar('val_ssim', val_ssim, epoch)
 
-        del real_y_list, fake_y_list, self_y_list
-
     writer.close()
 
     logger.info('============================================')
@@ -373,9 +310,6 @@ def pred_all(model_path=False):
 
     model_dtime = model_path.split('/')[2]
 
-    # cuda = True if torch.cuda.is_available() else False
-    # if cuda:
-    #     generator = generator.to(device)
     generator = generator.to(device)
 
     dir_all = f'./result_all/{model_dtime}/'

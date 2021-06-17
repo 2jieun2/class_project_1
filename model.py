@@ -35,17 +35,12 @@ class ConvBlock(nn.Module):
         super().__init__()
         layers = [
             nn.Conv3d(in_c, out_c, kernel_size=3, stride=1, padding=1, bias=False),
-            # nn.Conv3d(in_c, out_c, kernel_size=4, stride=2, padding=1, bias=False),
             nn.InstanceNorm3d(out_c),
             nn.LeakyReLU(inplace=True)
         ]
         if dropout:
             layers.append(nn.Dropout(dropout))
-        # layers.extend([
-        #     nn.Conv3d(out_c, out_c, kernel_size=3, stride=1, padding=1, bias=False),
-        #     nn.InstanceNorm3d(out_c),
-        #     nn.LeakyReLU(inplace=True)
-        # ])
+
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -81,7 +76,6 @@ class GeneratorUNet(nn.Module):
         self.conv2 = ConvBlock(nf, nf*2)
         self.conv3 = ConvBlock(nf*2, nf*4)
         self.conv4 = ConvBlock(nf*4, nf*8)
-        # self.conv5 = ConvBlock(nf*8, nf*16)
         self.conv5 = ConvBlock(nf*8, nf*8)
 
         self.up1 = UpMerge(nf*8, nf*8)
@@ -89,23 +83,8 @@ class GeneratorUNet(nn.Module):
         self.up3 = UpMerge(nf*4*2, nf*2)
         self.up4 = UpMerge(nf*2*2, nf)
 
-        # self.up6 = UpMerge(nf*16, nf*8)
-        # self.conv6 = ConvBlock(nf*8*2, nf*8, 0.2)
-
-        # self.up7 = UpMerge(nf*8, nf*4)
-        # self.conv7 = ConvBlock(nf*4*2, nf*4, 0.2)
-
-        # self.up8 = UpMerge(nf*4, nf*2)
-        # self.conv8 = ConvBlock(nf*2*2, nf*2, 0.1)
-
-        # self.up9 = UpMerge(nf*2, nf)
-        # self.conv9 = ConvBlock(nf*2, nf, 0.1)
-
         self.out = nn.Sequential(
-            # nn.Conv3d(nf, out_channels, kernel_size=1, stride=1, bias=False),
             nn.Conv3d(nf*2, out_channels, kernel_size=1, stride=1, bias=False),
-            # nn.Tanh()
-            # nn.ReLU()
             nn.LeakyReLU(inplace=True)
         )
 
@@ -124,26 +103,7 @@ class GeneratorUNet(nn.Module):
         p4 = self.pooling(c4)
 
         c5 = self.conv5(p4)
-        #
-        # u6 = self.up6(c5, c4)
-        # c6 = self.conv6(u6)
-        #
-        # u7 = self.up7(c6, c3)
-        # c7 = self.conv7(u7)
-        #
-        # u8 = self.up8(c7, c2)
-        # c8 = self.conv8(u8)
-        #
-        # u9 = self.up9(c8, c1)
-        # c9 = self.conv9(u9)
-        #
-        # out = self.out(c9)
 
-        # c1 = self.conv1(x)
-        # c2 = self.conv2(c1)
-        # c3 = self.conv3(c2)
-        # c4 = self.conv4(c3)
-        # c5 = self.conv5(c4)
         u1 = self.up1(c5, c4)
         u2 = self.up2(u1, c3)
         u3 = self.up3(u2, c2)
@@ -154,7 +114,6 @@ class GeneratorUNet(nn.Module):
             out = match_size(out, x.shape[2:])
 
         return u1, u2, u3, u4, out
-        # return out
 
 
 class TeacherUNet(nn.Module):
@@ -168,7 +127,6 @@ class TeacherUNet(nn.Module):
         self.conv2 = ConvBlock(nf, nf*2)
         self.conv3 = ConvBlock(nf*2, nf*4)
         self.conv4 = ConvBlock(nf*4, nf*8)
-        # self.conv5 = ConvBlock(nf*8, nf*16)
         self.conv5 = ConvBlock(nf*8, nf*8)
 
         self.up1 = UpMerge(nf*8, nf*8)
@@ -176,23 +134,8 @@ class TeacherUNet(nn.Module):
         self.up3 = UpMerge(nf*4*2, nf*2)
         self.up4 = UpMerge(nf*2*2, nf)
 
-        # self.up6 = UpMerge(nf*16, nf*8)
-        # self.conv6 = ConvBlock(nf*8*2, nf*8, 0.2)
-
-        # self.up7 = UpMerge(nf*8, nf*4)
-        # self.conv7 = ConvBlock(nf*4*2, nf*4, 0.2)
-
-        # self.up8 = UpMerge(nf*4, nf*2)
-        # self.conv8 = ConvBlock(nf*2*2, nf*2, 0.1)
-
-        # self.up9 = UpMerge(nf*2, nf)
-        # self.conv9 = ConvBlock(nf*2, nf, 0.1)
-
         self.out = nn.Sequential(
-            # nn.Conv3d(nf, out_channels, kernel_size=1, stride=1, bias=False),
             nn.Conv3d(nf*2, out_channels, kernel_size=1, stride=1, bias=False),
-            # nn.Tanh()
-            # nn.ReLU()
             nn.LeakyReLU(inplace=True)
         )
 
@@ -211,26 +154,7 @@ class TeacherUNet(nn.Module):
         p4 = self.pooling(c4)
 
         c5 = self.conv5(p4)
-        #
-        # u6 = self.up6(c5, c4)
-        # c6 = self.conv6(u6)
-        #
-        # u7 = self.up7(c6, c3)
-        # c7 = self.conv7(u7)
-        #
-        # u8 = self.up8(c7, c2)
-        # c8 = self.conv8(u8)
-        #
-        # u9 = self.up9(c8, c1)
-        # c9 = self.conv9(u9)
-        #
-        # out = self.out(c9)
 
-        # c1 = self.conv1(x)
-        # c2 = self.conv2(c1)
-        # c3 = self.conv3(c2)
-        # c4 = self.conv4(c3)
-        # c5 = self.conv5(c4)
         u1 = self.up1(c5, c4)
         u2 = self.up2(u1, c3)
         u3 = self.up3(u2, c2)
@@ -241,7 +165,6 @@ class TeacherUNet(nn.Module):
             out = match_size(out, x.shape[2:])
 
         return u1, u2, u3, u4, out
-        # return out
 
 
 class Discriminator(nn.Module):
@@ -257,17 +180,8 @@ class Discriminator(nn.Module):
         self.conv4 = ConvBlock(nf*4, nf*8)
         self.conv5 = ConvBlock(nf*8, nf*16)
 
-        # self.conv1 = ConvBlock(in_channels, nf, 0.1)
-        # self.conv2 = ConvBlock(nf, nf*2, 0.1)
-        # self.conv3 = ConvBlock(nf*2, nf*4, 0.2)
-        # self.conv4 = ConvBlock(nf*4, nf*8, 0.2)
-        # self.conv5 = ConvBlock(nf*8, nf*16, 0.3)
-
-
         self.out = nn.Sequential(
-            # nn.Conv3d(nf*8, 1, kernel_size=4, padding=1, bias=False)
             nn.AdaptiveAvgPool3d(output_size=1),
-            # nn.Sigmoid()
             nn.LeakyReLU(inplace=True)
         )
 
@@ -287,12 +201,5 @@ class Discriminator(nn.Module):
         c5 = self.conv5(p4)
 
         out = self.out(c5)
-
-        # c1 = self.conv1(x)
-        # c2 = self.conv2(c1)
-        # c3 = self.conv3(c2)
-        # c4 = self.conv4(c3)
-        # c5 = self.conv5(c4)
-        # out = self.out(c5)
 
         return out
